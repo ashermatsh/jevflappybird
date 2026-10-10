@@ -140,10 +140,15 @@ class Handler(SimpleHTTPRequestHandler):
         path, _, query = self.path.partition("?")
         if path != "/api/decide":
             return self.send_error(404)
-        agent_id = dict(kv.partition("=")[::2] for kv in query.split("&") if kv).get("agent", "agent1")
+        # No default agent: a stale page that omits it should fail loudly, not
+        # silently fall back to agent1.
+        agent_id = dict(kv.partition("=")[::2] for kv in query.split("&") if kv).get("agent")
         agent = AGENTS.get(agent_id)
         if not agent:
-            return self._json(400, {"error": f"Unknown agent '{agent_id}'", "detail": list(AGENTS)})
+            return self._json(400, {
+                "error": f"Unknown or missing agent '{agent_id}'",
+                "detail": f"Expected one of {list(AGENTS)}. Hard-refresh the page (Ctrl+Shift+R).",
+            })
         try:
             length = int(self.headers.get("Content-Length", 0))
             game_state = json.loads(self.rfile.read(length) or b"{}")
@@ -161,6 +166,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "action": action if action in ("flap", "wait") else "wait",
                 "parsed": action is not None,
                 "source": source,
+                "model": agent["model"],
                 "latencyMs": round((time.perf_counter() - t0) * 1000),
                 "stateText": text,
                 "raw": raw,
@@ -171,6 +177,11 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(502, {"error": f"{agent['name']} HTTP {e.code}", "detail": detail})
         except Exception as e:  # noqa: BLE001 - surface every failure to the panel
             self._json(500, {"error": type(e).__name__, "detail": str(e)})
+
+    def end_headers(self):
+        # Always serve fresh files so code updates aren't masked by the browser cache.
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def _json(self, code, obj):
         data = json.dumps(obj).encode()

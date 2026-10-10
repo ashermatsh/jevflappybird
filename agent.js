@@ -84,7 +84,7 @@
           stats.decisions++;
           stats.latency.push(d.latencyMs ?? performance.now() - t0);
           if (stats.latency.length > 200) stats.latency.shift();
-          ui.status.textContent = `${d.source}: ${d.action.toUpperCase()}${d.parsed === false ? ' (unparsed → wait)' : ''}`;
+          ui.status.textContent = `${d.source}${d.model ? ` [${d.model}]` : ''}: ${d.action.toUpperCase()}${d.parsed === false ? ' (unparsed → wait)' : ''}`;
           if (d.stateText) ui.situation.textContent = d.stateText;
           if (d.raw) ui.raw.textContent = JSON.stringify(d.raw, null, 2);
           render();
