@@ -1,0 +1,49 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #1d2533;
+  color: #cfd8e3;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#wrap {
+  /* Keep the 2:3 aspect ratio and fit inside the viewport */
+  width: min(100vw, calc((100vh - 40px) * 2 / 3));
+  aspect-ratio: 2 / 3;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  image-rendering: auto;
+}
+
+.hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+@media (max-width: 500px) {
+  canvas { border-radius: 0; }
+  .hint { display: none; }
+  #wrap { width: min(100vw, calc(100vh * 2 / 3)); }
+}
