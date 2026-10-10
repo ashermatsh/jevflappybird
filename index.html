@@ -4,18 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Jev Flappy Bird</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <main id="wrap">
     <canvas id="game" width="400" height="600" aria-label="Flappy Bird game"></canvas>
   </main>
   <aside id="agent" hidden>
-    <h2>🤖 Autopilot</h2>
+    <h2>🤖 Vision autopilot</h2>
     <label>Agent
       <select id="ag-policy">
-        <option value="agent1">Agent 1 – Jev</option>
-        <option value="agent2">Agent 2 – OpenAI decisions</option>
+        <option value="vision">OpenAI decisions (sees screenshots)</option>
         <option value="local">Local heuristic (baseline)</option>
       </select>
     </label>
@@ -33,13 +32,14 @@
       <dt>Decisions</dt><dd id="ag-decisions"></dd>
       <dt>Flap rate</dt><dd id="ag-flaps"></dd>
     </dl>
-    <h3>Situation sent to the model</h3>
-    <p id="ag-situation" class="mono">–</p>
+    <h3>Image sent to the model</h3>
+    <img id="ag-image" alt="Latest screenshot sent to the model">
+    <p id="ag-image-info" class="mono">–</p>
     <h3>Raw response</h3>
     <pre id="ag-raw" class="mono">–</pre>
   </aside>
   <p class="hint">Space / ↑ / click / tap to flap · P to pause · M to mute</p>
-  <script src="game.js?v=3"></script>
-  <script src="agent.js?v=3"></script>
+  <script src="game.js?v=4"></script>
+  <script src="agent.js?v=4"></script>
 </body>
 </html>

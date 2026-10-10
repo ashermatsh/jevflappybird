@@ -14,8 +14,48 @@
     autoRestart: $('ag-restart'), toggle: $('ag-toggle'), status: $('ag-status'),
     games: $('ag-games'), last: $('ag-last'), best: $('ag-best'), avg: $('ag-avg'),
     latency: $('ag-latency'), decisions: $('ag-decisions'), flaps: $('ag-flaps'),
-    situation: $('ag-situation'), raw: $('ag-raw'),
+    image: $('ag-image'), imageInfo: $('ag-image-info'), raw: $('ag-raw'),
   };
+
+  // ---- Screenshots -------------------------------------------------------
+  // Each frame is downscaled to 200x300; the model gets BEFORE | NOW side by
+  // side (400x300) so it can see which way the bird is moving.
+  const FW = 200, FH = 300;
+  const makeCanvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const sheet = makeCanvas(FW * 2, FH);
+  const sheetCtx = sheet.getContext('2d');
+  let prevFrame = null;
+
+  function grabFrame() {
+    const c = makeCanvas(FW, FH);
+    const cctx = c.getContext('2d');
+    cctx.imageSmoothingQuality = 'high';
+    cctx.drawImage(game.render(), 0, 0, FW, FH);
+    return c;
+  }
+
+  function label(text, x) {
+    sheetCtx.font = 'bold 14px system-ui, sans-serif';
+    sheetCtx.textAlign = 'left';
+    sheetCtx.textBaseline = 'top';
+    const w = sheetCtx.measureText(text).width + 10;
+    sheetCtx.fillStyle = 'rgba(0,0,0,0.65)';
+    sheetCtx.fillRect(x + 4, FH - 24, w, 20);
+    sheetCtx.fillStyle = '#fff';
+    sheetCtx.fillText(text, x + 9, FH - 21);
+  }
+
+  function screenshot(intervalMs) {
+    const now = grabFrame();
+    sheetCtx.drawImage(prevFrame || now, 0, 0);
+    sheetCtx.drawImage(now, FW, 0);
+    sheetCtx.fillStyle = '#fff';
+    sheetCtx.fillRect(FW - 1, 0, 2, FH);
+    label(`BEFORE (-${intervalMs} ms)`, 0);
+    label('NOW', FW);
+    prevFrame = now;
+    return sheet.toDataURL('image/jpeg', 0.85);
+  }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const stats = { scores: [], latency: [], decisions: 0, flaps: 0 };
@@ -32,11 +72,16 @@
   }
 
   async function decide(s) {
+    const image = screenshot(Math.round(s.interval * 1000));
+    ui.image.src = image;
+    ui.imageInfo.textContent = `${sheet.width}×${sheet.height} JPEG, ${Math.round((image.length * 3) / 4 / 1024)} KB`;
     if (ui.policy.value === 'local') return { action: heuristic(s), latencyMs: 0, source: 'local' };
-    const res = await fetch(`/api/decide?agent=${ui.policy.value}`, {
+    const res = await fetch('/api/decide', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(s),
+      // `game` (exact numbers) is only used by the server's mock mode; the
+      // real model only ever sees the image.
+      body: JSON.stringify({ image, interval: s.interval, game: s }),
     });
     const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     if (!res.ok || data.error) throw new Error(`${data.error || res.status}: ${data.detail || ''}`);
@@ -75,6 +120,7 @@
       wasOver = false;
 
       if (s.status === 'ready') {
+        prevFrame = null; // don't compare against the previous round
         game.flap(); // starts the round
       } else if (s.status === 'playing') {
         try {
@@ -85,7 +131,6 @@
           stats.latency.push(d.latencyMs ?? performance.now() - t0);
           if (stats.latency.length > 200) stats.latency.shift();
           ui.status.textContent = `${d.source}${d.model ? ` [${d.model}]` : ''}: ${d.action.toUpperCase()}${d.parsed === false ? ' (unparsed → wait)' : ''}`;
-          if (d.stateText) ui.situation.textContent = d.stateText;
           if (d.raw) ui.raw.textContent = JSON.stringify(d.raw, null, 2);
           render();
         } catch (err) {

@@ -99,3 +99,5 @@ pre.mono { max-height: 180px; overflow: auto; }
   body.with-agent { padding: 0; }
   #agent { width: 100%; max-height: none; border-radius: 0; }
 }
+#ag-image { display: block; width: 100%; border-radius: 4px; background: #1d2533; min-height: 40px; }
+#ag-image-info { margin-top: 4px; }

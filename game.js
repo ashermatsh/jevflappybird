@@ -526,6 +526,8 @@
     flap() { if (!paused) flap(); },
     restart() { paused = false; reset(); },
     setExternalClock(on) { externalClock = !!on; acc = 0; },
+    // Draws the current state immediately and returns the canvas (for screenshots).
+    render() { draw(); return canvas; },
     advance(seconds) {
       for (let n = Math.round(seconds / STEP); n > 0; n--) update(STEP);
     },

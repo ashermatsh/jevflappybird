@@ -31,34 +31,37 @@ To host it, enable **GitHub Pages** (Settings → Pages → deploy from the `mai
 - `style.css` – layout and scaling
 - `game.js` – game logic and rendering
 
-## Autopilot: Agent 1 (Jev) vs Agent 2 (OpenAI decisions)
+## Vision autopilot (OpenAI decisions)
 
-The game can be played by two models through OpenRouter's decisions API
-(`https://openrouter.ai/api/alpha/decisions`):
-
-| Agent | Model | Override with |
-| --- | --- | --- |
-| Agent 1 – Jev | `~typesafe/jev-latest` | `AGENT1_MODEL` |
-| Agent 2 – OpenAI decisions | `openai/gpt-6-luna-decisions` | `AGENT2_MODEL` |
+On this branch the game is played by `openai/gpt-6-luna-decisions` through OpenRouter's decisions API
+(`https://openrouter.ai/api/alpha/decisions`), using **screenshots instead of numbers**.
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-...   # omit to run in mock mode (built-in heuristic)
 python3 server.py                      # serves the game + /api/decide on port 8000
 ```
 
-Then open `http://localhost:8000/?agent` (in Codespaces: the forwarded port 8000, adding `?agent`),
-pick an agent and press **Start**. Use **Reset stats** between agents to compare them.
+Then open `http://localhost:8000/?agent` (in Codespaces: the forwarded port 8000, adding `?agent`) and press **Start**.
 
 How it works:
 
-1. `agent.js` reads the game via `window.jevGame.getState()` every *decision interval*.
-2. It POSTs the state to `server.py` (`/api/decide?agent=agent1|agent2`), which turns it into a
-   plain-English `state` and asks the chosen model one `choice` question: `action` → `flap` | `wait`.
-3. The answer is applied with `jevGame.flap()`.
+1. Every *decision interval*, `agent.js` renders the canvas and downscales it to 200×300.
+2. A single frame can't show whether the bird is rising or falling, so the image sent is the
+   **previous and current frame side by side** (`BEFORE | NOW`, 400×300 JPEG, ~20 KB).
+3. `server.py` sends it as the request `state`, a list of parts:
+   ```json
+   "state": [
+     {"type": "text", "text": "Flappy Bird screenshot. Left half: BEFORE ... Right half: NOW ..."},
+     {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+   ]
+   ```
+   and asks one `choice` question: `action` → `flap` | `wait`.
+4. The answer is applied with `jevGame.flap()`. The panel shows the exact image sent and the raw response.
 
 **Lockstep** mode (default) freezes the game while the model thinks and then advances exactly one
 interval, so latency doesn't matter. Untick it to make the model play in real time.
 
-The API key stays on the server and is never sent to the browser. Other env vars: `DECISIONS_URL`, `PORT`.
+The API key stays on the server and is never sent to the browser. Other env vars: `MODEL`, `DECISIONS_URL`, `PORT`.
 
-The **Local heuristic** policy is a baseline (≈20 points per game at a 100 ms interval) to compare the agents against.
+The **Local heuristic** policy is a baseline (≈20 points per game at a 100 ms interval) that reads exact
+game numbers rather than the image.
