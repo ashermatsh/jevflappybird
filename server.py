@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""Serves the game and proxies agent decisions to Jev (OpenRouter decisions API).
+"""Serves the game and proxies agent decisions to OpenRouter's decisions API.
+
+Two agents are available, both on the same endpoint with different models:
+    agent1  Jev                       (~typesafe/jev-latest)
+    agent2  OpenAI decisions          (openai/gpt-6-luna-decisions)
 
 Usage:
     export OPENROUTER_API_KEY=sk-or-...
     python3 server.py              # then open http://localhost:8000/?agent
 
 Without OPENROUTER_API_KEY the server answers with a built-in heuristic
-("mock" mode) so the whole pipeline can be tested without Jev.
+("mock" mode) so the whole pipeline can be tested without calling a model.
 
 Optional env vars:
-    JEV_URL    default https://openrouter.ai/api/alpha/decisions
-    JEV_MODEL  default ~typesafe/jev-latest
+    DECISIONS_URL  default https://openrouter.ai/api/alpha/decisions
+    AGENT1_MODEL   default ~typesafe/jev-latest
+    AGENT2_MODEL   default openai/gpt-6-luna-decisions
     PORT       default 8000
 """
 import json
@@ -20,9 +25,12 @@ import urllib.error
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-JEV_URL = os.environ.get("JEV_URL", "https://openrouter.ai/api/alpha/decisions")
-JEV_MODEL = os.environ.get("JEV_MODEL", "~typesafe/jev-latest")
-API_KEY = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("JEV_API_KEY")
+DECISIONS_URL = os.environ.get("DECISIONS_URL", "https://openrouter.ai/api/alpha/decisions")
+AGENTS = {
+    "agent1": {"name": "Jev", "model": os.environ.get("AGENT1_MODEL", "~typesafe/jev-latest")},
+    "agent2": {"name": "OpenAI decisions", "model": os.environ.get("AGENT2_MODEL", "openai/gpt-6-luna-decisions")},
+}
+API_KEY = os.environ.get("OPENROUTER_API_KEY")
 PORT = int(os.environ.get("PORT", "8000"))
 SAFE_MARGIN = 18  # px above the bottom pipe the bird should stay
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -44,7 +52,7 @@ QUESTIONS = {
 
 
 def describe(s):
-    """Turn the game state into a short plain-English situation for Jev."""
+    """Turn the game state into a short plain-English situation for the model."""
     bird = s["bird"]
     y, vy = bird["y"], bird["vy"]
     motion = f"rising at {-vy} px/s" if vy < 0 else f"falling at {vy} px/s" if vy > 0 else "hovering"
@@ -112,10 +120,10 @@ def find_action(obj):
     return None
 
 
-def ask_jev(state_text):
-    body = json.dumps({"model": JEV_MODEL, "state": state_text, "questions": QUESTIONS}).encode()
+def ask_model(model, state_text):
+    body = json.dumps({"model": model, "state": state_text, "questions": QUESTIONS}).encode()
     req = urllib.request.Request(
-        JEV_URL,
+        DECISIONS_URL,
         data=body,
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"},
         method="POST",
@@ -129,21 +137,26 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=ROOT, **kwargs)
 
     def do_POST(self):
-        if self.path != "/api/decide":
+        path, _, query = self.path.partition("?")
+        if path != "/api/decide":
             return self.send_error(404)
+        agent_id = dict(kv.partition("=")[::2] for kv in query.split("&") if kv).get("agent", "agent1")
+        agent = AGENTS.get(agent_id)
+        if not agent:
+            return self._json(400, {"error": f"Unknown agent '{agent_id}'", "detail": list(AGENTS)})
         try:
             length = int(self.headers.get("Content-Length", 0))
             game_state = json.loads(self.rfile.read(length) or b"{}")
             text = describe(game_state)
             t0 = time.perf_counter()
             if API_KEY:
-                raw = ask_jev(text)
+                raw = ask_model(agent["model"], text)
                 action = find_action(raw)
-                source = "jev"
+                source = f"{agent_id} ({agent['name']})"
             else:
                 action = heuristic(game_state)
                 raw = {"mock": True, "action": action}
-                source = "mock"
+                source = f"{agent_id} (mock)"
             out = {
                 "action": action if action in ("flap", "wait") else "wait",
                 "parsed": action is not None,
@@ -155,7 +168,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, out)
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")[:2000]
-            self._json(502, {"error": f"Jev HTTP {e.code}", "detail": detail})
+            self._json(502, {"error": f"{agent['name']} HTTP {e.code}", "detail": detail})
         except Exception as e:  # noqa: BLE001 - surface every failure to the panel
             self._json(500, {"error": type(e).__name__, "detail": str(e)})
 
@@ -173,7 +186,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    mode = f"Jev ({JEV_MODEL})" if API_KEY else "MOCK (set OPENROUTER_API_KEY to use Jev)"
-    print(f"Decision backend: {mode}")
+    for agent_id, a in AGENTS.items():
+        print(f"{agent_id}: {a['name']} ({a['model']})")
+    if not API_KEY:
+        print("MOCK mode: set OPENROUTER_API_KEY to call the real models")
     print(f"Open http://localhost:{PORT}/?agent")
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()

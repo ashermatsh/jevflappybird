@@ -31,9 +31,15 @@ To host it, enable **GitHub Pages** (Settings → Pages → deploy from the `mai
 - `style.css` – layout and scaling
 - `game.js` – game logic and rendering
 
-## Jev autopilot
+## Autopilot: Agent 1 (Jev) vs Agent 2 (OpenAI decisions)
 
-The game can be played by [Jev](https://openrouter.ai) through OpenRouter's decisions API.
+The game can be played by two models through OpenRouter's decisions API
+(`https://openrouter.ai/api/alpha/decisions`):
+
+| Agent | Model | Override with |
+| --- | --- | --- |
+| Agent 1 – Jev | `~typesafe/jev-latest` | `AGENT1_MODEL` |
+| Agent 2 – OpenAI decisions | `openai/gpt-6-luna-decisions` | `AGENT2_MODEL` |
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-...   # omit to run in mock mode (built-in heuristic)
@@ -41,19 +47,18 @@ python3 server.py                      # serves the game + /api/decide on port 8
 ```
 
 Then open `http://localhost:8000/?agent` (in Codespaces: the forwarded port 8000, adding `?agent`),
-pick **Jev (via server.py)** and press **Start**.
+pick an agent and press **Start**. Use **Reset stats** between agents to compare them.
 
 How it works:
 
 1. `agent.js` reads the game via `window.jevGame.getState()` every *decision interval*.
-2. It POSTs the state to `server.py`, which turns it into a plain-English `state` and asks Jev one
-   `choice` question: `action` → `flap` | `wait`.
+2. It POSTs the state to `server.py` (`/api/decide?agent=agent1|agent2`), which turns it into a
+   plain-English `state` and asks the chosen model one `choice` question: `action` → `flap` | `wait`.
 3. The answer is applied with `jevGame.flap()`.
 
-**Lockstep** mode (default) freezes the game while Jev thinks and then advances exactly one
-interval, so latency doesn't matter. Untick it to make Jev play in real time.
+**Lockstep** mode (default) freezes the game while the model thinks and then advances exactly one
+interval, so latency doesn't matter. Untick it to make the model play in real time.
 
-The API key stays on the server and is never sent to the browser. Optional env vars: `JEV_URL`,
-`JEV_MODEL` (default `~typesafe/jev-latest`), `PORT`.
+The API key stays on the server and is never sent to the browser. Other env vars: `DECISIONS_URL`, `PORT`.
 
-The **Local heuristic** policy is a baseline (≈20 points per game at a 100 ms interval) to compare Jev against.
+The **Local heuristic** policy is a baseline (≈20 points per game at a 100 ms interval) to compare the agents against.

@@ -33,7 +33,7 @@
 
   async function decide(s) {
     if (ui.policy.value === 'local') return { action: heuristic(s), latencyMs: 0, source: 'local' };
-    const res = await fetch('/api/decide', {
+    const res = await fetch(`/api/decide?agent=${ui.policy.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(s),

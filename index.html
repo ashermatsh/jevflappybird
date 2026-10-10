@@ -11,10 +11,11 @@
     <canvas id="game" width="400" height="600" aria-label="Flappy Bird game"></canvas>
   </main>
   <aside id="agent" hidden>
-    <h2>🤖 Jev autopilot</h2>
-    <label>Policy
+    <h2>🤖 Autopilot</h2>
+    <label>Agent
       <select id="ag-policy">
-        <option value="server">Jev (via server.py)</option>
+        <option value="agent1">Agent 1 – Jev</option>
+        <option value="agent2">Agent 2 – OpenAI decisions</option>
         <option value="local">Local heuristic (baseline)</option>
       </select>
     </label>
@@ -32,7 +33,7 @@
       <dt>Decisions</dt><dd id="ag-decisions"></dd>
       <dt>Flap rate</dt><dd id="ag-flaps"></dd>
     </dl>
-    <h3>Situation sent to Jev</h3>
+    <h3>Situation sent to the model</h3>
     <p id="ag-situation" class="mono">–</p>
     <h3>Raw response</h3>
     <pre id="ag-raw" class="mono">–</pre>
