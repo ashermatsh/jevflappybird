@@ -10,7 +10,35 @@
   <main id="wrap">
     <canvas id="game" width="400" height="600" aria-label="Flappy Bird game"></canvas>
   </main>
+  <aside id="agent" hidden>
+    <h2>🤖 Jev autopilot</h2>
+    <label>Policy
+      <select id="ag-policy">
+        <option value="server">Jev (via server.py)</option>
+        <option value="local">Local heuristic (baseline)</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="ag-lockstep" checked> Lockstep (game waits for each decision)</label>
+    <label><input type="checkbox" id="ag-restart" checked> Auto-restart</label>
+    <label>Decision interval (ms) <input type="number" id="ag-interval" value="100" min="20" step="10"></label>
+    <div class="ag-buttons"><button id="ag-toggle">Start</button><button id="ag-reset">Reset stats</button></div>
+    <p id="ag-status">Idle</p>
+    <dl>
+      <dt>Games</dt><dd id="ag-games"></dd>
+      <dt>Last score</dt><dd id="ag-last"></dd>
+      <dt>Best</dt><dd id="ag-best"></dd>
+      <dt>Average</dt><dd id="ag-avg"></dd>
+      <dt>Avg latency</dt><dd id="ag-latency"></dd>
+      <dt>Decisions</dt><dd id="ag-decisions"></dd>
+      <dt>Flap rate</dt><dd id="ag-flaps"></dd>
+    </dl>
+    <h3>Situation sent to Jev</h3>
+    <p id="ag-situation" class="mono">–</p>
+    <h3>Raw response</h3>
+    <pre id="ag-raw" class="mono">–</pre>
+  </aside>
   <p class="hint">Space / ↑ / click / tap to flap · P to pause · M to mute</p>
   <script src="game.js"></script>
+  <script src="agent.js"></script>
 </body>
 </html>

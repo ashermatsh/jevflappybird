@@ -30,3 +30,30 @@ To host it, enable **GitHub Pages** (Settings → Pages → deploy from the `mai
 - `index.html` – page shell
 - `style.css` – layout and scaling
 - `game.js` – game logic and rendering
+
+## Jev autopilot
+
+The game can be played by [Jev](https://openrouter.ai) through OpenRouter's decisions API.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...   # omit to run in mock mode (built-in heuristic)
+python3 server.py                      # serves the game + /api/decide on port 8000
+```
+
+Then open `http://localhost:8000/?agent` (in Codespaces: the forwarded port 8000, adding `?agent`),
+pick **Jev (via server.py)** and press **Start**.
+
+How it works:
+
+1. `agent.js` reads the game via `window.jevGame.getState()` every *decision interval*.
+2. It POSTs the state to `server.py`, which turns it into a plain-English `state` and asks Jev one
+   `choice` question: `action` → `flap` | `wait`.
+3. The answer is applied with `jevGame.flap()`.
+
+**Lockstep** mode (default) freezes the game while Jev thinks and then advances exactly one
+interval, so latency doesn't matter. Untick it to make Jev play in real time.
+
+The API key stays on the server and is never sent to the browser. Optional env vars: `JEV_URL`,
+`JEV_MODEL` (default `~typesafe/jev-latest`), `PORT`.
+
+The **Local heuristic** policy is a baseline (≈20 points per game at a 100 ms interval) to compare Jev against.

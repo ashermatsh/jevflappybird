@@ -478,7 +478,7 @@
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.25) dt = 0.25; // avoid spiral after tab switch
-    if (!paused) {
+    if (!paused && !externalClock) {
       acc += dt;
       while (acc >= STEP) {
         update(STEP);
@@ -490,6 +490,46 @@
     draw();
     requestAnimationFrame(frame);
   }
+
+  // ---- Agent API ---------------------------------------------------------
+  // Lets an external controller (e.g. Jev) read the game and act on it.
+  // With externalClock on, the simulation only advances via advance(), so a
+  // slow model can play in lockstep without the bird falling while it thinks.
+  let externalClock = false;
+  const STATE_NAMES = ['ready', 'playing', 'dying', 'over'];
+
+  function getState() {
+    const ahead = pipes
+      .filter((p) => p.x + PIPE_W > BIRD_X - BIRD_R)
+      .slice(0, 2)
+      .map((p) => ({
+        dx: Math.round(p.x - BIRD_X),              // px from bird to pipe's left edge
+        gapTop: Math.round(p.top),
+        gapBottom: Math.round(p.top + p.gap),
+        gapCenter: Math.round(p.top + p.gap / 2),
+      }));
+    return {
+      status: STATE_NAMES[state],
+      score,
+      best,
+      bird: { y: Math.round(bird.y), vy: Math.round(bird.vy), radius: BIRD_R },
+      pipes: ahead,
+      world: {
+        width: W, height: PLAY_H, pipeWidth: PIPE_W, pipeSpeed: PIPE_SPEED,
+        gravity: GRAVITY, flapVelocity: FLAP_VELOCITY,
+      },
+    };
+  }
+
+  window.jevGame = {
+    getState,
+    flap() { if (!paused) flap(); },
+    restart() { paused = false; reset(); },
+    setExternalClock(on) { externalClock = !!on; acc = 0; },
+    advance(seconds) {
+      for (let n = Math.round(seconds / STEP); n > 0; n--) update(STEP);
+    },
+  };
 
   reset();
   requestAnimationFrame(frame);
